@@ -16,6 +16,7 @@
 package io.confluent.connect.jdbc;
 
 import org.apache.kafka.common.config.Config;
+import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.config.ConfigValue;
 import org.apache.kafka.connect.connector.ConnectorContext;
 import org.apache.kafka.connect.errors.ConnectException;
@@ -97,6 +98,22 @@ public class JdbcSourceConnectorTest {
   public void tearDown() throws Exception {
     db.close();
     db.dropDatabase();
+  }
+
+  @Test(expected = ConfigException.class)
+  public void tableWhiteListAndTableToIncrementingColumnNameMappingConfigurationShouldBeExclusive() {
+    // TODO: this should better be implemented with a validator class?
+    props.put(JdbcSourceConnectorConfig.TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG, "t1#c1,t2#c2");
+    connector.start(props);
+  }
+
+  @Test
+  public void tableNamesShouldBeReadFromTheTableToIncrementingColumnNameMappingIfWhiteListIsNotSet() {
+    Map<String, String> newProps = new HashMap<>();
+    newProps.put(JdbcSourceConnectorConfig.TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG, "t1#c1,t2#c2");
+    newProps.put(JdbcSourceConnectorConfig.CONNECTION_URL_CONFIG, db.getUrl());
+
+    connector.start(newProps);
   }
 
   @Test

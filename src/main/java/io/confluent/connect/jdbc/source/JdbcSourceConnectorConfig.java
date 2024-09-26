@@ -176,6 +176,11 @@ public class JdbcSourceConnectorConfig extends AbstractConfig {
   public static final String MODE_INCREMENTING = "incrementing";
   public static final String MODE_TIMESTAMP_INCREMENTING = "timestamp+incrementing";
 
+  public static final String TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG = "table.to.incrementing.column.name.mapping";
+  public static final String TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_DOC =
+          "A mapping from table to names to the names of the columns that hold the incrementing ids. "
+                  + "This is required, since the column names that hold the incrementing ids may be different for the tables."
+                  + "Example: 'table1#c1,table2#c2,...,tableN#cN'";
   public static final String INCREMENTING_COLUMN_NAME_CONFIG = "incrementing.column.name";
   private static final String INCREMENTING_COLUMN_NAME_DOC =
       "The name of the strictly incrementing column to use to detect new rows. Any empty value "
@@ -672,7 +677,7 @@ public class JdbcSourceConnectorConfig extends AbstractConfig {
         ++orderInGroup,
         Width.MEDIUM,
         QUERY_RETRIES_DISPLAY
-    );
+    ).define(TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG, Type.LIST, Importance.HIGH, TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_DOC);
   }
 
   private static final void addConnectorOptions(ConfigDef config) {

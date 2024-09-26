@@ -253,6 +253,20 @@ public class JdbcSourceConnectorConfigTest {
     assertFalse(connectionAttemptsConfig.errorMessages().isEmpty());
   }
 
+  @Test
+  public void eitherTableToIncrementingColumnNameConfigOrWhiteListShouldBeSetButNotBoth() {
+    // TODO: finish this test case.
+    props.put(JdbcSourceConnectorConfig.TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG, "t1#c1,t2#c2");
+    props.put(JdbcSourceConnectorConfig.TABLE_WHITELIST_CONFIG, "t1,t2");
+    Map<String, ConfigValue> validatedConfig =
+            JdbcSourceConnectorConfig.baseConfigDef().validateAll(props);
+    ConfigValue tableToIncrementingIdColumnNameConfig =
+            validatedConfig.get(JdbcSourceConnectorConfig.TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG);
+    assertNotNull(tableToIncrementingIdColumnNameConfig);
+    //TODO: move the validation logic into a validator, instead of checking the exclusiveness upon startup.
+    //assertFalse(tableToIncrementingIdColumnNameConfig.errorMessages().isEmpty());
+  }
+
   @SuppressWarnings("unchecked")
   protected <T> void assertContains(Collection<T> actual, T... expected) {
     for (T e : expected) {
