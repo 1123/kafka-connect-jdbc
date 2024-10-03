@@ -112,8 +112,29 @@ public class JdbcSourceConnectorTest {
     Map<String, String> newProps = new HashMap<>();
     newProps.put(JdbcSourceConnectorConfig.TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG, "t1#c1,t2#c2");
     newProps.put(JdbcSourceConnectorConfig.CONNECTION_URL_CONFIG, db.getUrl());
-
     connector.start(newProps);
+  }
+
+  @Test
+  public void testGetTaskConfigWithTableToIncrementingColumnMapping() throws SQLException {
+    db.createTable("t1", "c1", "INT NOT NULL");
+    db.createTable("t2", "c2", "INT NOT NULL");
+    db.createTable("t3", "c3", "INT NOT NULL");
+    Map<String, String> myProps = new HashMap<>();
+    myProps.put(JdbcSourceConnectorConfig.TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG, "t1#c1,t2#c2");
+    myProps.put(JdbcSourceConnectorConfig.CONNECTION_URL_CONFIG, db.getUrl());
+    CountDownLatch taskReconfigurationLatch = new CountDownLatch(1);
+    connectorContext.requestTaskReconfiguration();
+    EasyMock.expectLastCall().andAnswer(() -> {
+      taskReconfigurationLatch.countDown();
+      return null;
+    });
+    EasyMock.replay(connectorContext);
+    connector.initialize(connectorContext);
+    connector.start(myProps);
+    List<Map<String, String>> taskConfigs = connector.taskConfigs(2);
+    assertEquals(2, taskConfigs.size());
+    assertEquals("\"APP\".\"t1\"", taskConfigs.get(0).get("tables"));
   }
 
   @Test

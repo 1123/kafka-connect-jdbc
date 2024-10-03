@@ -677,7 +677,7 @@ public class JdbcSourceConnectorConfig extends AbstractConfig {
         ++orderInGroup,
         Width.MEDIUM,
         QUERY_RETRIES_DISPLAY
-    ).define(TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG, Type.LIST, Importance.HIGH, TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_DOC);
+    ).define(TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG, Type.LIST, "", Importance.HIGH, TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_DOC);
   }
 
   private static final void addConnectorOptions(ConfigDef config) {
