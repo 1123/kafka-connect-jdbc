@@ -96,20 +96,18 @@ public class JdbcSourceConnector extends SourceConnector {
     log.info("Initial connection attempt with the database.");
     cachedConnectionProvider.getConnection();
 
-    long tablePollMs = config.getLong(JdbcSourceConnectorConfig.TABLE_POLL_INTERVAL_MS_CONFIG);
-    long tableStartupLimitMs =
-        config.getLong(JdbcSourceConnectorConfig.TABLE_MONITORING_STARTUP_POLLING_LIMIT_MS_CONFIG);
-    List<String> tableNamesWithIncrementingColumnNames = config.getList(JdbcSourceConnectorConfig.TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG);
+    List<String> tableNamesWithIncrementingColumnNames = config.getList(
+            JdbcSourceConnectorConfig.TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG);
     List<String> whitelist = config.getList(JdbcSourceConnectorConfig.TABLE_WHITELIST_CONFIG);
     if (!whitelist.isEmpty() && !tableNamesWithIncrementingColumnNames.isEmpty()) {
-      throw new ConfigException(JdbcSourceConnectorConfig.TABLE_WHITELIST_CONFIG + " and " +
-              JdbcSourceConnectorConfig.TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG + " are exclusive");
+      throw new ConfigException(JdbcSourceConnectorConfig.TABLE_WHITELIST_CONFIG + " and "
+              + JdbcSourceConnectorConfig.TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG
+              + " are exclusive");
     }
     if (whitelist.isEmpty() && !tableNamesWithIncrementingColumnNames.isEmpty()) {
       // populate the whitelist from the mapping.
-      whitelist = tableNamesWithIncrementingColumnNames.stream().map(entry -> entry.split("#")[0]).collect(Collectors.toList());
-      // TODO: store the incrementing column names in some data structure
-      // pass the incrementing column names to the connect tasks together with the table names.
+      whitelist = tableNamesWithIncrementingColumnNames.stream()
+              .map(entry -> entry.split("#")[0]).collect(Collectors.toList());
     }
 
     Set<String> whitelistSet = whitelist.isEmpty() ? null : new HashSet<>(whitelist);
@@ -136,6 +134,9 @@ public class JdbcSourceConnector extends SourceConnector {
       whitelistSet = Collections.emptySet();
 
     }
+    long tablePollMs = config.getLong(JdbcSourceConnectorConfig.TABLE_POLL_INTERVAL_MS_CONFIG);
+    long tableStartupLimitMs = config.getLong(
+            JdbcSourceConnectorConfig.TABLE_MONITORING_STARTUP_POLLING_LIMIT_MS_CONFIG);
     tableMonitorThread = new TableMonitorThread(
         dialect,
         cachedConnectionProvider,
