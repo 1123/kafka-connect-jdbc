@@ -190,8 +190,8 @@ public class JdbcSourceTask extends SourceTask {
         = config.getString(JdbcSourceTaskConfig.INCREMENTING_COLUMN_NAME_CONFIG);
     List<String> tableNameToIdMapping = config.getList(
             JdbcSourceConnectorConfig.TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG);
+    Map<String, String> tablesToColumns = new HashMap<>();
     if (tableNameToIdMapping != null && ! tableNameToIdMapping.isEmpty()) {
-      Map<String, String> tablesToColumns = new HashMap<>();
       tableNameToIdMapping.forEach(
               tableAndColumn -> {
                 String[] split = tableAndColumn.split("#");
@@ -199,7 +199,6 @@ public class JdbcSourceTask extends SourceTask {
                 String columName = split[1];
                 tablesToColumns.put(tableName, columName);
               });
-      incrementingColumn = tablesToColumns.get(tablesOrQuery.get(0));
     }
     List<String> timestampColumns
         = config.getList(JdbcSourceTaskConfig.TIMESTAMP_COLUMN_NAME_CONFIG);
@@ -211,10 +210,24 @@ public class JdbcSourceTask extends SourceTask {
     String suffix = config.getString(JdbcSourceTaskConfig.QUERY_SUFFIX_CONFIG).trim();
 
     if (queryMode.equals(TableQuerier.QueryMode.TABLE)) {
+      // TODO: why is this only validated for the first table?
+      // It seems like this should be validated for each table?
+      // Therefore this code should be moved into the for loop below?
+      if (
+              (incrementingColumn == null || incrementingColumn.isEmpty())
+                      && tablesToColumns.containsKey(tables.get(0))
+      ) {
+          incrementingColumn = tablesToColumns.get(tables.get(0));
+      }
       validateColumnsExist(mode, incrementingColumn, timestampColumns, tables.get(0));
     }
 
     for (String tableOrQuery : tablesOrQuery) {
+      if (
+              (incrementingColumn == null || incrementingColumn.isEmpty())
+              && tablesToColumns.containsKey(tableOrQuery)
+      )
+        incrementingColumn = tablesToColumns.get(tableOrQuery);
       final List<Map<String, String>> tablePartitionsToCheck;
       final Map<String, String> partition;
       log.trace("Task executing in {} mode",queryMode);
