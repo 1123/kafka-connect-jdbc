@@ -24,7 +24,6 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.ZoneOffset;
@@ -36,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 
+import io.confluent.connect.jdbc.util.TableId;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.ConnectException;
@@ -200,6 +200,35 @@ public class JdbcSourceTaskUpdateTest extends JdbcSourceTaskTestBase {
     verifyPoll(2, "id", Arrays.asList(2, 3), false, true, false, TOPIC_PREFIX + SINGLE_TABLE_NAME);
 
     PowerMock.verifyAll();
+  }
+
+  @Test
+  public void testManualIncrementingWithColumnIdMapping() throws SQLException, InterruptedException {
+    Map<String, String> partition_v0 =
+            OffsetProtocols.sourcePartitionForProtocolV0(new TableId(null, null, "t1"));
+    Map<String, String> partition_v1 =
+            OffsetProtocols.sourcePartitionForProtocolV1(new TableId(null, null, "t1"));
+    expectInitializeNoOffsets(Arrays.asList(partition_v1, partition_v0));
+    PowerMock.replayAll();
+
+    db.createTable("t1", "c1", "INT NOT NULL");
+    db.createTable("t2", "c2", "INT NOT NULL");
+    db.insert("t1", "c1", 1);
+    db.insert("t2", "c2", 1);
+
+    Map<String, String> properties = new HashMap<>();
+    properties.put("connection.url", "jdbc:derby:__test_database_default;create=true");
+    properties.put("tables", "t1");
+    properties.put(JdbcSourceTaskConfig.TABLES_FETCHED, "true");
+    properties.put(JdbcSourceConnectorConfig.MODE_CONFIG, JdbcSourceConnectorConfig.MODE_INCREMENTING);
+    properties.put(JdbcSourceConnectorConfig.TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG, "t1#c1,t2#c2");
+    initializeTask();
+    task.start(properties);
+    System.err.println("started");
+    List<SourceRecord> pollResult = task.poll();
+    assertNotNull(pollResult);
+    assertEquals(1, pollResult.size());
+    // TODO: it would be good to assert that the extracted value is 1.
   }
 
   @Test

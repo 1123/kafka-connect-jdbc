@@ -188,6 +188,17 @@ public class JdbcSourceTask extends SourceTask {
 
     String incrementingColumn
         = config.getString(JdbcSourceTaskConfig.INCREMENTING_COLUMN_NAME_CONFIG);
+    List<String> tableNameToIdMapping = config.getList(JdbcSourceConnectorConfig.TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG);
+    if (tableNameToIdMapping != null && ! tableNameToIdMapping.isEmpty()) {
+      Map<String, String> tablesToColumns = new HashMap<>();
+      tableNameToIdMapping.forEach(tableAndColumn -> {
+                String[] split = tableAndColumn.split("#");
+                String tableName = split[0];
+                String columName = split[1];
+                tablesToColumns.put(tableName, columName);
+              });
+      incrementingColumn = tablesToColumns.get(tablesOrQuery.get(0));
+    }
     List<String> timestampColumns
         = config.getList(JdbcSourceTaskConfig.TIMESTAMP_COLUMN_NAME_CONFIG);
     Long timestampDelayInterval
