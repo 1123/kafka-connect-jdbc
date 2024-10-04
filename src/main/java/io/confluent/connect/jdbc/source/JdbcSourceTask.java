@@ -213,21 +213,15 @@ public class JdbcSourceTask extends SourceTask {
       // TODO: why is this only validated for the first table?
       // It seems like this should be validated for each table?
       // Therefore this code should be moved into the for loop below?
-      if (
-              (incrementingColumn == null || incrementingColumn.isEmpty())
-                      && tablesToColumns.containsKey(tables.get(0))
-      ) {
-          incrementingColumn = tablesToColumns.get(tables.get(0));
-      }
-      validateColumnsExist(mode, incrementingColumn, timestampColumns, tables.get(0));
+      validateColumnsExist(mode,
+              determineIncrementingColumnForTable(tablesToColumns, incrementingColumn, tables.get(0)),
+              timestampColumns,
+              tables.get(0)
+      );
     }
 
     for (String tableOrQuery : tablesOrQuery) {
-      if (
-              (incrementingColumn == null || incrementingColumn.isEmpty())
-              && tablesToColumns.containsKey(tableOrQuery)
-      )
-        incrementingColumn = tablesToColumns.get(tableOrQuery);
+
       final List<Map<String, String>> tablePartitionsToCheck;
       final Map<String, String> partition;
       log.trace("Task executing in {} mode",queryMode);
@@ -235,10 +229,10 @@ public class JdbcSourceTask extends SourceTask {
         case TABLE:
           if (validateNonNulls) {
             validateNonNullable(
-                mode,
-                tableOrQuery,
-                incrementingColumn,
-                timestampColumns
+                    mode,
+                    tableOrQuery,
+                    determineIncrementingColumnForTable(tablesToColumns, incrementingColumn, tableOrQuery),
+                    timestampColumns
             );
           }
           tablePartitionsToCheck = partitionsByTableFqn.get(tableOrQuery);
@@ -291,7 +285,7 @@ public class JdbcSourceTask extends SourceTask {
                 tableOrQuery,
                 topicPrefix,
                 null,
-                incrementingColumn,
+                determineIncrementingColumnForTable(tablesToColumns, incrementingColumn, tableOrQuery),
                 offset,
                 timestampDelayInterval,
                 timeZone,
@@ -338,6 +332,15 @@ public class JdbcSourceTask extends SourceTask {
     log.info("Started JDBC source task");
 
     maxRetriesPerQuerier = config.getInt(JdbcSourceConnectorConfig.QUERY_RETRIES_CONFIG);
+  }
+
+  private String determineIncrementingColumnForTable(
+          Map<String, String> tableToColumnMap,
+          String presetIncrementingColumn,
+          String tableName) {
+    if (presetIncrementingColumn != null && !presetIncrementingColumn.isEmpty()) return presetIncrementingColumn;
+    if (tableToColumnMap.containsKey(tableName)) return tableToColumnMap.get(tableName);
+    return presetIncrementingColumn;
   }
 
   private void validateColumnsExist(

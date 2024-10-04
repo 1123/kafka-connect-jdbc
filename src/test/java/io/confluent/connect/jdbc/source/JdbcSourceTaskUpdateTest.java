@@ -204,11 +204,15 @@ public class JdbcSourceTaskUpdateTest extends JdbcSourceTaskTestBase {
 
   @Test
   public void testManualIncrementingWithColumnIdMapping() throws SQLException, InterruptedException {
-    Map<String, String> partition_v0 =
+    Map<String, String> t1_v0 =
             OffsetProtocols.sourcePartitionForProtocolV0(new TableId(null, null, "t1"));
-    Map<String, String> partition_v1 =
+    Map<String, String> t1_v1 =
             OffsetProtocols.sourcePartitionForProtocolV1(new TableId(null, null, "t1"));
-    expectInitializeNoOffsets(Arrays.asList(partition_v1, partition_v0));
+    Map<String, String> t2_v0 =
+            OffsetProtocols.sourcePartitionForProtocolV0(new TableId(null, null, "t2"));
+    Map<String, String> t2_v1 =
+            OffsetProtocols.sourcePartitionForProtocolV1(new TableId(null, null, "t2"));
+    expectInitializeNoOffsets(Arrays.asList(t1_v1, t1_v0, t2_v1, t2_v0));
     PowerMock.replayAll();
 
     db.createTable("t1", "c1", "INT NOT NULL");
@@ -218,17 +222,20 @@ public class JdbcSourceTaskUpdateTest extends JdbcSourceTaskTestBase {
 
     Map<String, String> properties = new HashMap<>();
     properties.put("connection.url", "jdbc:derby:__test_database_default;create=true");
-    properties.put("tables", "t1");
+    properties.put("tables", "t1,t2");
     properties.put(JdbcSourceTaskConfig.TABLES_FETCHED, "true");
     properties.put(JdbcSourceConnectorConfig.MODE_CONFIG, JdbcSourceConnectorConfig.MODE_INCREMENTING);
     properties.put(JdbcSourceConnectorConfig.TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG, "t1#c1,t2#c2");
     initializeTask();
     task.start(properties);
-    System.err.println("started");
     List<SourceRecord> pollResult = task.poll();
+    // TODO: it is not clear why we need to call poll() twice to get the results from both tables.
+    // TODO: it would be good to add some assertions about the returned SourceRecords.
     assertNotNull(pollResult);
     assertEquals(1, pollResult.size());
-    // TODO: it would be good to assert that the extracted value is 1.
+    pollResult = task.poll();
+    assertNotNull(pollResult);
+    assertEquals(1, pollResult.size());
   }
 
   @Test
