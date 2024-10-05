@@ -96,23 +96,10 @@ public class JdbcSourceConnector extends SourceConnector {
     log.info("Initial connection attempt with the database.");
     cachedConnectionProvider.getConnection();
 
-    List<String> tableNamesWithIncrementingColumnNames = config.getList(
-            JdbcSourceConnectorConfig.TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG);
-    List<String> whitelist = config.getList(JdbcSourceConnectorConfig.TABLE_WHITELIST_CONFIG);
-    if (!whitelist.isEmpty() && !tableNamesWithIncrementingColumnNames.isEmpty()) {
-      throw new ConfigException(JdbcSourceConnectorConfig.TABLE_WHITELIST_CONFIG + " and "
-              + JdbcSourceConnectorConfig.TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG
-              + " are exclusive");
-    }
-    if (whitelist.isEmpty() && !tableNamesWithIncrementingColumnNames.isEmpty()) {
-      // populate the whitelist from the mapping.
-      whitelist = tableNamesWithIncrementingColumnNames.stream()
-              .map(entry -> entry.split("#")[0]).collect(Collectors.toList());
-    }
 
-    Set<String> whitelistSet = whitelist.isEmpty() ? null : new HashSet<>(whitelist);
     List<String> blacklist = config.getList(JdbcSourceConnectorConfig.TABLE_BLACKLIST_CONFIG);
     Set<String> blacklistSet = blacklist.isEmpty() ? null : new HashSet<>(blacklist);
+    Set<String> whitelistSet = findWhiteListSet();
 
     if (whitelistSet != null && blacklistSet != null) {
       throw new ConnectException(JdbcSourceConnectorConfig.TABLE_WHITELIST_CONFIG + " and "
@@ -151,6 +138,34 @@ public class JdbcSourceConnector extends SourceConnector {
       tableMonitorThread.start();
       log.info("Starting Table Monitor Thread");
     }
+  }
+
+  /**
+   * The set of tables to query from can either be populated by the configuration option
+   * {@link JdbcSourceConnectorConfig#TABLE_WHITELIST_CONFIG}
+   * or by the configuration option
+   * {@link JdbcSourceConnectorConfig#TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG }.
+   * Specifying both is a configuration error.
+   * The latter option allows to specify an incrementing column id for each table.
+   *
+   * @return the set of tables to be monitored.
+   */
+
+  private Set<String> findWhiteListSet() {
+    List<String> tableNamesWithIncrementingColumnNames = config.getList(
+            JdbcSourceConnectorConfig.TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG);
+    List<String> whitelist = config.getList(JdbcSourceConnectorConfig.TABLE_WHITELIST_CONFIG);
+    if (!whitelist.isEmpty() && !tableNamesWithIncrementingColumnNames.isEmpty()) {
+      throw new ConfigException(JdbcSourceConnectorConfig.TABLE_WHITELIST_CONFIG + " and "
+              + JdbcSourceConnectorConfig.TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG
+              + " are exclusive");
+    }
+    if (whitelist.isEmpty() && !tableNamesWithIncrementingColumnNames.isEmpty()) {
+      // populate the whitelist from the mapping.
+      whitelist = tableNamesWithIncrementingColumnNames.stream()
+              .map(entry -> entry.split("#")[0]).collect(Collectors.toList());
+    }
+    return whitelist.isEmpty() ? null : new HashSet<>(whitelist);
   }
 
   protected CachedConnectionProvider connectionProvider(int maxConnAttempts, long retryBackoff) {
