@@ -103,16 +103,12 @@ public class JdbcSourceConnectorTest {
   @Test(expected = ConfigException.class)
   public void tableWhiteListAndTableToIncrementingColumnNameMappingConfigurationShouldBeExclusive() {
     // TODO: this should better be implemented with a validator class?
-    props.put(JdbcSourceConnectorConfig.TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG, "t1#c1,t2#c2");
-    connector.start(props);
-  }
-
-  @Test
-  public void tableNamesShouldBeReadFromTheTableToIncrementingColumnNameMappingIfWhiteListIsNotSet() {
-    Map<String, String> newProps = new HashMap<>();
-    newProps.put(JdbcSourceConnectorConfig.TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG, "t1#c1,t2#c2");
-    newProps.put(JdbcSourceConnectorConfig.CONNECTION_URL_CONFIG, db.getUrl());
-    connector.start(newProps);
+    Map<String, String> p = new HashMap<>();
+    p.put(JdbcSourceConnectorConfig.CONNECTION_URL_CONFIG, db.getUrl());
+    p.put(JdbcSourceConnectorConfig.MODE_CONFIG, JdbcSourceConnectorConfig.MODE_INCREMENTING);
+    p.put(JdbcSourceConnectorConfig.TABLE_WHITELIST_CONFIG, "t1,t2,t3");
+    p.put(JdbcSourceConnectorConfig.TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG, "t1#c1,t2#c2");
+    connector.start(p);
   }
 
   @Test
@@ -135,6 +131,7 @@ public class JdbcSourceConnectorTest {
     List<Map<String, String>> taskConfigs = connector.taskConfigs(2);
     assertEquals(2, taskConfigs.size());
     assertEquals("\"APP\".\"t1\"", taskConfigs.get(0).get("tables"));
+    assertEquals("\"APP\".\"t2\"", taskConfigs.get(1).get("tables"));
   }
 
   @Test
