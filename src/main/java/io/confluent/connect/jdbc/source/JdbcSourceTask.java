@@ -184,20 +184,6 @@ public class JdbcSourceTask extends SourceTask {
       log.trace("The partition offsets are {}", offsets);
     }
 
-    String incrementingColumn
-        = config.getString(JdbcSourceTaskConfig.INCREMENTING_COLUMN_NAME_CONFIG);
-    List<String> tableNameToIdMapping = config.getList(
-            JdbcSourceConnectorConfig.TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG);
-    Map<String, String> tablesToColumns = new HashMap<>();
-    if (tableNameToIdMapping != null && ! tableNameToIdMapping.isEmpty()) {
-      tableNameToIdMapping.forEach(
-              tableAndColumn -> {
-                String[] split = tableAndColumn.split("#");
-                String tableName = split[0];
-                String columName = split[1];
-                tablesToColumns.put(tableName, columName);
-              });
-    }
     List<String> timestampColumns
         = config.getList(JdbcSourceTaskConfig.TIMESTAMP_COLUMN_NAME_CONFIG);
     Long timestampDelayInterval
@@ -212,8 +198,7 @@ public class JdbcSourceTask extends SourceTask {
       // It seems like this should be validated for each table?
       // Therefore this code should be moved into the for loop below?
       validateColumnsExist(mode,
-              determineIncrementingColumnForTable(
-                      tablesToColumns, incrementingColumn, tables.get(0)),
+              determineIncrementingColumnForTable(tables.get(0)),
               timestampColumns,
               tables.get(0)
       );
@@ -232,8 +217,7 @@ public class JdbcSourceTask extends SourceTask {
             validateNonNullable(
                     mode,
                     tableOrQuery,
-                    determineIncrementingColumnForTable(
-                            tablesToColumns, incrementingColumn, tableOrQuery),
+                    determineIncrementingColumnForTable(tableOrQuery),
                     timestampColumns
             );
           }
@@ -287,8 +271,7 @@ public class JdbcSourceTask extends SourceTask {
                 tableOrQuery,
                 topicPrefix,
                 null,
-                determineIncrementingColumnForTable(
-                        tablesToColumns, incrementingColumn, tableOrQuery),
+                determineIncrementingColumnForTable(tableOrQuery),
                 offset,
                 timestampDelayInterval,
                 timeZone,
@@ -319,7 +302,7 @@ public class JdbcSourceTask extends SourceTask {
                 tableOrQuery,
                 topicPrefix,
                 timestampColumns,
-                incrementingColumn,
+                config.getString(JdbcSourceTaskConfig.INCREMENTING_COLUMN_NAME_CONFIG),
                 offset,
                 timestampDelayInterval,
                 timeZone,
@@ -337,17 +320,41 @@ public class JdbcSourceTask extends SourceTask {
     maxRetriesPerQuerier = config.getInt(JdbcSourceConnectorConfig.QUERY_RETRIES_CONFIG);
   }
 
-  private String determineIncrementingColumnForTable(
-          Map<String, String> tableToColumnMap,
-          String presetIncrementingColumn,
-          String tableName) {
-    if (presetIncrementingColumn != null && !presetIncrementingColumn.isEmpty()) {
-      return presetIncrementingColumn;
+  /**
+   * There are multiple ways to specify the column name that shall be used as the incrementing
+   * column name.
+   * One is to use the {@link JdbcSourceConnectorConfig#INCREMENTING_COLUMN_NAME_CONFIG}
+   * configuration option, the other is to use the
+   * {@link JdbcSourceConnectorConfig#TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG}
+   * configuration option. Finally, if none of the above options are used, then the connector
+   * tries to guess the correct column.
+   *
+   * @param tableName The table for which to find the incrementing column name
+   * @return The incrementing column name.
+   */
+
+  private String determineIncrementingColumnForTable(String tableName) {
+    List<String> tableNameToIdMapping = config.getList(
+            JdbcSourceConnectorConfig.TABLE_TO_INCREMENT_COLUMN_NAME_MAPPING_CONFIG);
+    Map<String, String> tablesToColumns = new HashMap<>();
+    if (tableNameToIdMapping != null && ! tableNameToIdMapping.isEmpty()) {
+      tableNameToIdMapping.forEach(
+              tableAndColumn -> {
+                String[] split = tableAndColumn.split("#");
+                String t = split[0];
+                String c = split[1];
+                tablesToColumns.put(t, c);
+              });
     }
-    if (tableToColumnMap.containsKey(tableName)) {
-      return tableToColumnMap.get(tableName);
+    String incrementingColumn
+            = config.getString(JdbcSourceTaskConfig.INCREMENTING_COLUMN_NAME_CONFIG);
+    if (incrementingColumn != null && !incrementingColumn.isEmpty()) {
+      return incrementingColumn;
     }
-    return presetIncrementingColumn;
+    if (tablesToColumns.containsKey(tableName)) {
+      return tablesToColumns.get(tableName);
+    }
+    return incrementingColumn;
   }
 
   private void validateColumnsExist(
